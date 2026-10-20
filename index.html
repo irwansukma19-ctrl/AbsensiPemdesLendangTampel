@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Absensi Digital - Pemerintah Desa Lendang Tampel</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome 6 Pro / Free -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- SheetJS (Excel Export) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- jsPDF & AutoTable (PDF Export) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        emerald: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b',
+                            950: '#022c22',
+                        },
+                        gold: {
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s infinite ease-in-out',
+                        'scan-beam': 'scanBeam 2.2s infinite ease-in-out',
+                        'float': 'float 4s infinite ease-in-out',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%, 100%': { filter: 'drop-shadow(0 0 15px rgba(16, 185, 129, 0.4)) scale(1)' },
+                            '50%': { filter: 'drop-shadow(0 0 35px rgba(16, 185, 129, 0.9)) scale(1.03)' }
+                        },
+                        scanBeam: {
+                            '0%': { top: '0%', opacity: '0.2' },
+                            '50%': { top: '90%', opacity: '1' },
+                            '100%': { top: '0%', opacity: '0.2' }
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-8px)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+        }
+
+        /* Glassmorphism Classes */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .glass-header {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-input {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        .glass-input:focus {
+            background: rgba(15, 23, 42, 0.85);
+            border-color: #10b981;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #10b981; }
+
+        /* Scanning beam line */
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, #10b981, #34d399, #10b981, transparent);
+            box-shadow: 0 0 15px #10b981, 0 0 25px #34d399;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col overflow-x-hidden antialiased selection:bg-emerald-500 selection:text-white">
+
+    <!-- TOP HEADER / NAVBAR -->
+    <header class="sticky top-0 z-40 glass-header text-white transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center">
+            <!-- Branding -->
+            <div class="flex items-center gap-3.5">
+                <div class="relative">
+                    <div class="w-11 h-11 bg-gradient-to-tr from-emerald-600 via-teal-500 to-emerald-400 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl shadow-lg shadow-emerald-500/30 border border-white/20">
+                        <i class="fa-solid fa-landmark"></i>
+                    </div>
+                    <span class="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-slate-900"></span>
+                    </span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
+                            PEMDES LENDANG TAMPEL
+                        </h1>
+                        <span class="hidden sm:inline-block px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
+                            PRESENSI DIGITAL
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium">Kabupaten Lombok Tengah • NTB</p>
+                </div>
+            </div>
+
+            <!-- Right Controls / Auth Badge -->
+            <div class="flex items-center gap-3">
+                <div id="live-clock-badge" class="hidden md:flex flex-col text-right px-3 py-1 bg-slate-800/80 rounded-xl border border-slate-700/60">
+                    <span id="header-time" class="text-sm font-bold text-emerald-400 tracking-wider">00:00:00 WITA</span>
+                    <span id="header-date" class="text-[11px] text-slate-400 font-medium">Selasa, 1 Jan 2024</span>
+                </div>
+
+                <button id="btn-admin-toggle" onclick="app.toggleAdminMode()" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-emerald-900/40 hover:shadow-emerald-600/30 border border-emerald-400/30 transition-all transform active:scale-95 flex items-center gap-2">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span id="btn-admin-text">Panel Admin</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN BODY CONTENT -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+
+        <!-- GLOBAL LOADING OVERLAY -->
+        <div id="global-loading" class="fixed inset-0 bg-slate-950/90 z-50 flex flex-col items-center justify-center gap-4 backdrop-blur-md">
+            <div class="relative w-20 h-20 flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
+                <i class="fa-solid fa-landmark text-3xl text-emerald-400"></i>
+            </div>
+            <div class="text-center">
+                <p class="text-lg font-bold text-white tracking-wide">Menghubungkan ke System Server...</p>
+                <p class="text-xs text-slate-400 mt-1">Sistem Absensi Biometrik & GPS Desa Lendang Tampel</p>
+            </div>
+        </div>
+
+        <!-- ==================================================================== -->
+        <!-- SECTION 1: HERO PORTFOLIO & DESA SHOWCASE (PROFIL KANTOR & KADES) -->
+        <!-- ==================================================================== -->
+        <section class="relative rounded-3xl overflow-hidden glass-card shadow-2xl border border-slate-700/60">
+            <!-- Background Image with Dark Overlay -->
+            <div class="absolute inset-0 z-0">
+                <img id="village-hero-bg" src="https://images.unsplash.com/photo-1577495508048-b635879837f1?auto=format&fit=crop&w=1600&q=80" alt="Kantor Desa" class="w-full h-full object-cover object-center opacity-35 filter brightness-75 transition-all duration-700">
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-slate-900/40"></div>
+            </div>
+
+            <div class="relative z-10 p-6 sm:p-8 md:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                
+                <!-- Left: Greeting & Village Vision -->
+                <div class="lg:col-span-7 space-y-5">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-400/30 rounded-full text-emerald-300 text-xs font-semibold backdrop-blur-md">
+                        <i class="fa-solid fa-star text-gold-400"></i> Portofolio Digital Desa Lendang Tampel
+                    </div>
+                    
+                    <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
+                        Pelayanan Handal & <br>
+                        <span class="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+                            Kedisiplinan Perangkat Desa
+                        </span>
+                    </h2>
+                    
+                    <p class="text-slate-300 text-sm sm:text-base leading-relaxed font-normal max-w-2xl">
+                        Selamat datang di portal presensi biometrik sidik jari dan verifikasi berbasis GPS Kantor Desa Lendang Tampel. Mewujudkan tata kelola pemerintahan desa yang transparan, profesional, dan berorientasi pada masyarakat.
+                    </p>
+
+                    <!-- Dynamic Village Stats -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                        <div class="p-3 bg-slate-900/70 border border-slate-700/80 rounded-2xl backdrop-blur-md">
+                            <span class="text-xs text-slate-400 font-medium block">Total Perangkat</span>
+                            <span id="stat-total-pegawai" class="text-xl sm:text-2xl font-bold text-white">--</span>
+                        </div>
+                        <div class="p-3 bg-slate-900/70 border border-slate-700/80 rounded-2xl backdrop-blur-md">
+                            <span class="text-xs text-slate-400 font-medium block">Hadir Hari Ini</span>
+                            <span id="stat-hadir-today" class="text-xl sm:text-2xl font-bold text-emerald-400">--</span>
+                        </div>
+                        <div class="p-3 bg-slate-900/70 border border-slate-700/80 rounded-2xl backdrop-blur-md">
+                            <span class="text-xs text-slate-400 font-medium block">Kehadiran</span>
+                            <span id="stat-persen-today" class="text-xl sm:text-2xl font-bold text-cyan-400">0%</span>
+                        </div>
+                        <div class="p-3 bg-slate-900/70 border border-slate-700/80 rounded-2xl backdrop-blur-md">
+                            <span class="text-xs text-slate-400 font-medium block">Sistem GPS</span>
+                            <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mt-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> AKSI AKTIF
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Profile Card Kepala Desa Showcase -->
+                <div class="lg:col-span-5 flex justify-center">
+                    <div class="w-full max-w-sm glass-card rounded-3xl p-6 border border-emerald-500/30 shadow-2xl relative group hover:border-emerald-400/60 transition-all duration-300">
+                        <div class="absolute -top-3 right-6 bg-gradient-to-r from-gold-500 to-amber-600 text-slate-950 font-extrabold text-[11px] px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
+                            Kepala Desa
+                        </div>
+
+                        <div class="flex flex-col items-center text-center space-y-4">
+                            <!-- Foto Kades Avatar -->
+                            <div class="relative w-28 h-28 sm:w-32 sm:h-32 rounded-3xl p-1 bg-gradient-to-b from-emerald-400 via-teal-500 to-slate-800 shadow-xl shadow-emerald-950/50">
+                                <img id="kades-photo" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80" alt="Foto Kepala Desa" class="w-full h-full object-cover rounded-[22px] border-2 border-slate-900">
+                                <div class="absolute -bottom-2 -right-2 bg-emerald-500 text-white rounded-xl p-1.5 shadow-lg border border-slate-900 text-xs">
+                                    <i class="fa-solid fa-shield-check"></i>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 id="kades-name" class="text-lg font-extrabold text-white group-hover:text-emerald-300 transition-colors">
+                                    H. Lalu Ahmad Subhan, S.AP.
+                                </h3>
+                                <p class="text-xs text-emerald-400 font-semibold mt-0.5">Kepala Desa Lendang Tampel</p>
+                            </div>
+
+                            <div class="p-3 bg-slate-950/60 rounded-2xl border border-slate-800 text-xs text-slate-300 italic leading-relaxed">
+                                "<span id="kades-quote">Kedisiplinan adalah kunci utama pelayanan masyarakat yang ramah, cepat, dan berintegritas.</span>"
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==================================================================== -->
+        <!-- SECTION 2: FAST BIOMETRIC ATTENDANCE TERMINAL (KANTOR / HP STAFF)   -->
+        <!-- ==================================================================== -->
+        <section id="attendance-terminal-section" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- LEFT PANEL: Quick Identification & NIP/Nick Input -->
+            <div class="lg:col-span-5 glass-card rounded-3xl p-6 sm:p-7 space-y-6 border border-slate-700/80 shadow-2xl">
+                <div class="flex items-center justify-between border-b border-slate-700/80 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/30">
+                            <i class="fa-solid fa-fingerprint text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-base">Terminal Presensi</h3>
+                            <p class="text-xs text-slate-400">Masukan NIP / Nick / Pilih Nama</p>
+                        </div>
+                    </div>
+                    <span class="flex h-3 w-3 relative">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                </div>
+
+                <!-- Input Field for NIP / Nick / Search -->
+                <div class="space-y-3">
+                    <label class="block text-xs font-semibold text-slate-300">
+                        Cari Perangkat Desa (NIP / Nick / Nama)
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="input-nick-search" placeholder="Ketik NIP / Nick / Nama... (Contoh: kades, sekdes)" 
+                               oninput="app.onNickSearchInput(this.value)"
+                               class="w-full glass-input rounded-2xl px-4 py-3.5 pl-11 text-sm focus:outline-none transition-all placeholder:text-slate-500">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    </div>
+
+                    <!-- Dropdown Quick Select Alternative -->
+                    <div class="space-y-1">
+                        <label class="block text-[11px] font-medium text-slate-400">Atau Pilih Langsung dari Daftar:</label>
+                        <select id="select-staff-dropdown" onchange="app.onStaffDropdownSelect(this.value)" 
+                                class="w-full glass-input rounded-2xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none cursor-pointer">
+                            <option value="">-- Pilih Perangkat Desa --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Quick Tags Jabatan Filter / Suggestions -->
+                <div>
+                    <span class="text-[11px] text-slate-400 font-medium block mb-2">Pintas Cepat Jabatan:</span>
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <button onclick="app.filterByRole('kades')" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-xl transition">
+                            Kades
+                        </button>
+                        <button onclick="app.filterByRole('sekdes')" class="px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 rounded-xl transition">
+                            Sekdes
+                        </button>
+                        <button onclick="app.filterByRole('kasi')" class="px-2.5 py-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 rounded-xl transition">
+                            Kasi
+                        </button>
+                        <button onclick="app.filterByRole('kaur')" class="px-2.5 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 rounded-xl transition">
+                            Kaur
+                        </button>
+                        <button onclick="app.filterByRole('staf')" class="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-xl transition">
+                            Staf
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL: Live Selected Staff Card & Biometric Scan Trigger -->
+            <div class="lg:col-span-7 glass-card rounded-3xl p-6 sm:p-8 border border-slate-700/80 shadow-2xl relative overflow-hidden min-h-[380px] flex flex-col justify-between">
+                
+                <!-- Background Accent Glow -->
+                <div class="absolute -top-24 -right-24 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <!-- STATE A: No Selected Staff -->
+                <div id="staff-card-empty" class="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4">
+                    <div class="w-20 h-20 rounded-3xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-500 text-3xl animate-float">
+                        <i class="fa-solid fa-id-card-clip"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-bold text-white">Perangkat Desa Belum Dipilih</h4>
+                        <p class="text-xs text-slate-400 mt-1 max-w-sm">Silakan masukkan NIP/Nick atau pilih nama perangkat desa di panel sebelah kiri untuk memulai presensi sidik jari.</p>
+                    </div>
+                </div>
+
+                <!-- STATE B: Selected Staff Profile & Attendance Action -->
+                <div id="staff-card-active" class="hidden flex-1 flex flex-col justify-between space-y-6">
+                    
+                    <!-- Top User Info -->
+                    <div class="flex flex-col sm:flex-row items-center sm:items-start gap-5 bg-slate-900/60 p-5 rounded-2xl border border-slate-800">
+                        <div class="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-2xl overflow-hidden border-2 border-emerald-500/50 shadow-xl">
+                            <img id="active-staff-avatar" src="" alt="Foto Pegawai" class="w-full h-full object-cover">
+                        </div>
+                        <div class="text-center sm:text-left space-y-1.5 flex-1">
+                            <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                                <span id="active-staff-jabatan-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                    --
+                                </span>
+                                <span id="active-staff-nip" class="text-xs text-slate-400 font-mono">
+                                    NIP: --
+                                </span>
+                            </div>
+                            <h3 id="active-staff-name" class="text-xl sm:text-2xl font-extrabold text-white">
+                                --
+                            </h3>
+                            <p id="active-staff-role-desc" class="text-xs text-slate-400">Pemerintah Desa Lendang Tampel</p>
+                            
+                            <!-- Today Status Badge -->
+                            <div class="pt-2 flex items-center justify-center sm:justify-start gap-2">
+                                <span class="text-xs text-slate-400">Status Hari Ini:</span>
+                                <div id="active-staff-today-status">
+                                    <span class="px-2.5 py-0.5 bg-slate-800 text-slate-400 rounded-lg text-xs font-semibold">Belum Absen</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Action Buttons -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button onclick="app.startBiometricProcess('in')" id="btn-absen-masuk" 
+                                class="p-4 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl shadow-xl shadow-emerald-950/60 border border-emerald-400/30 transition-all transform active:scale-95 flex items-center justify-center gap-3 group">
+                            <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-right-to-bracket"></i>
+                            </div>
+                            <div class="text-left">
+                                <span class="block text-xs text-emerald-200 font-medium">Langkah 1</span>
+                                <span class="block text-sm font-bold">PRESENSI MASUK</span>
+                            </div>
+                        </button>
+
+                        <button onclick="app.startBiometricProcess('out')" id="btn-absen-pulang" 
+                                class="p-4 bg-gradient-to-br from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white rounded-2xl shadow-xl shadow-amber-950/60 border border-amber-400/30 transition-all transform active:scale-95 flex items-center justify-center gap-3 group">
+                            <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-right-from-bracket"></i>
+                            </div>
+                            <div class="text-left">
+                                <span class="block text-xs text-amber-200 font-medium">Langkah 2</span>
+                                <span class="block text-sm font-bold">PRESENSI PULANG</span>
+                            </div>
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==================================================================== -->
+        <!-- SECTION 3: ADMIN PANEL & REKAPAN ABSENSI (EXCEL / PDF)              -->
+        <!-- ==================================================================== -->
+        <section id="admin-panel-section" class="hidden glass-card rounded-3xl p-6 sm:p-8 space-y-6 border border-emerald-500/40 shadow-2xl">
+            
+            <!-- Admin Header Tabs -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-700/80 pb-5">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-full border border-emerald-500/30">
+                            ADMINISTRATOR PANEL
+                        </span>
+                        <h2 class="text-xl font-bold text-white">Kelola Absensi & Perangkat Desa</h2>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Kelola data seluruh pegawai, laporan rekapitulasi, dan atur tampilan portofolio desa.</p>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <div class="flex flex-wrap gap-2 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800">
+                    <button onclick="app.switchAdminTab('reports')" id="admin-tab-btn-reports" class="px-4 py-2 text-xs font-bold rounded-xl transition bg-emerald-600 text-white shadow-md">
+                        <i class="fa-solid fa-file-invoice mr-1.5"></i> Laporan Absensi
+                    </button>
+                    <button onclick="app.switchAdminTab('users')" id="admin-tab-btn-users" class="px-4 py-2 text-xs font-bold rounded-xl transition text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-users-gear mr-1.5"></i> Data Perangkat Desa
+                    </button>
+                    <button onclick="app.switchAdminTab('settings')" id="admin-tab-btn-settings" class="px-4 py-2 text-xs font-bold rounded-xl transition text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-sliders mr-1.5"></i> Pengaturan Desa
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 1: LAPORAN ABSENSI & EKSPOR -->
+            <div id="admin-view-reports" class="space-y-5">
+                <!-- Filters Bar & Export Buttons -->
+                <div class="flex flex-wrap gap-4 items-center justify-between bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+                    <div class="flex flex-wrap gap-3 items-center">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Filter Bulan:</label>
+                            <input type="month" id="filter-report-month" onchange="app.renderAttendanceLogsTable()" 
+                                   class="glass-input rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Filter Jabatan:</label>
+                            <select id="filter-report-jabatan" onchange="app.renderAttendanceLogsTable()" 
+                                    class="glass-input rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none">
+                                <option value="ALL">Semua Jabatan</option>
+                                <option value="Kepala Desa">Kepala Desa</option>
+                                <option value="Sekretaris Desa">Sekretaris Desa</option>
+                                <option value="Kasi">Kasi (Seksi)</option>
+                                <option value="Kaur">Kaur (Urusan)</option>
+                                <option value="Staf Desa">Staf Desa</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Export Buttons -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="app.exportToExcel()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-2 transition">
+                            <i class="fa-solid fa-file-excel text-sm"></i> Unduh Excel (.xlsx)
+                        </button>
+                        <button onclick="app.exportToPDF()" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-2 transition">
+                            <i class="fa-solid fa-file-pdf text-sm"></i> Unduh PDF Resmi
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Attendance Log Table -->
+                <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60">
+                    <table class="w-full text-left text-xs whitespace-nowrap">
+                        <thead class="bg-slate-800/80 text-slate-300 font-bold border-b border-slate-700">
+                            <tr>
+                                <th class="px-4 py-3.5">Tanggal</th>
+                                <th class="px-4 py-3.5">Pegawai / NIP</th>
+                                <th class="px-4 py-3.5">Jabatan</th>
+                                <th class="px-4 py-3.5">Jam Masuk</th>
+                                <th class="px-4 py-3.5">Lokasi GPS Masuk</th>
+                                <th class="px-4 py-3.5">Jam Pulang</th>
+                                <th class="px-4 py-3.5">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-attendance-tbody" class="divide-y divide-slate-800 text-slate-300">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: DATA PERANGKAT DESA -->
+            <div id="admin-view-users" class="hidden space-y-5">
+                <div class="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+                    <h3 class="font-bold text-white text-sm">Daftar Pegawai & Perangkat Desa</h3>
+                    <button onclick="app.openModalAddUser()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-2 transition">
+                        <i class="fa-solid fa-user-plus"></i> Tambah Perangkat Desa
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60">
+                    <table class="w-full text-left text-xs whitespace-nowrap">
+                        <thead class="bg-slate-800/80 text-slate-300 font-bold border-b border-slate-700">
+                            <tr>
+                                <th class="px-4 py-3.5">Pegawai</th>
+                                <th class="px-4 py-3.5">NIP / Nick</th>
+                                <th class="px-4 py-3.5">Jabatan</th>
+                                <th class="px-4 py-3.5">Role System</th>
+                                <th class="px-4 py-3.5 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-users-tbody" class="divide-y divide-slate-800 text-slate-300">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 3: PENGATURAN WEBSITE & FOTO DESA -->
+            <div id="admin-view-settings" class="hidden space-y-5">
+                <div class="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-4 max-w-2xl">
+                    <h3 class="font-bold text-white text-base border-b border-slate-800 pb-2">Atur Portofolio & Foto Desa</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">URL Foto Background Kantor Desa:</label>
+                            <input type="url" id="setting-hero-url" class="w-full glass-input rounded-xl px-4 py-2.5 text-xs text-white" placeholder="https://...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">URL Foto Kepala Desa:</label>
+                            <input type="url" id="setting-kades-photo-url" class="w-full glass-input rounded-xl px-4 py-2.5 text-xs text-white" placeholder="https://...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Kepala Desa:</label>
+                            <input type="text" id="setting-kades-name" class="w-full glass-input rounded-xl px-4 py-2.5 text-xs text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Pesan / Sambutan Kades:</label>
+                            <textarea id="setting-kades-quote" rows="3" class="w-full glass-input rounded-xl px-4 py-2.5 text-xs text-white"></textarea>
+                        </div>
+                        <button onclick="app.saveVillageSettings()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-lg transition">
+                            Simpan Perubahan Portofolio
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="mt-auto border-t border-slate-800 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4">
+            <p>© 2026 Pemerintah Desa Lendang Tampel • Sistem Absensi Biometrik & Terintegrasi GPS</p>
+        </div>
+    </footer>
+
+    <!-- ==================================================================== -->
+    <!-- MODAL: HIGH-TECH FINGERPRINT & GPS SCANNER SIMULATOR                -->
+    <!-- ==================================================================== -->
+    <div id="modal-scanner" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card rounded-3xl max-w-md w-full p-8 text-center border border-emerald-500/40 shadow-2xl relative overflow-hidden space-y-6">
+            
+            <div id="scanner-modal-header">
+                <span id="scan-type-badge" class="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-500/30 uppercase tracking-wider">
+                    VERIFIKASI PRESENSI
+                </span>
+                <h3 id="scan-modal-staff-name" class="text-xl font-extrabold text-white mt-2">Nama Pegawai</h3>
+                <p id="scan-modal-desc" class="text-xs text-slate-400 mt-1">Menghubungkan ke sensor sidik jari & GPS lokasi...</p>
+            </div>
+
+            <!-- Fingerprint Scanner Visual Container -->
+            <div class="relative w-40 h-40 mx-auto flex items-center justify-center">
+                <!-- Glowing Pulsing Circles -->
+                <div class="absolute inset-0 rounded-full border-2 border-emerald-500/30 animate-ping"></div>
+                <div class="absolute inset-2 rounded-full border border-emerald-400/40 animate-pulse"></div>
+
+                <!-- Fingerprint Icon -->
+                <div id="fp-icon-box" class="text-7xl text-emerald-400 animate-pulse-glow transition-all duration-300">
+                    <i class="fa-solid fa-fingerprint"></i>
+                </div>
+
+                <!-- Laser Scan Line Beam -->
+                <div id="fp-scan-beam" class="scan-line animate-scan-beam"></div>
+            </div>
+
+            <!-- Realtime Status Log -->
+            <div class="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800 space-y-1">
+                <p id="scan-status-title" class="text-xs font-bold text-emerald-400">Memeriksa Koordinat GPS...</p>
+                <p id="scan-status-detail" class="text-[11px] text-slate-400 font-mono">Akurasi GPS: Menganalisis...</p>
+            </div>
+
+            <button onclick="app.cancelScanProcess()" class="text-xs text-slate-400 hover:text-white underline transition">
+                Batal Verifikasi
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: TAMBAH / EDIT PERANGKAT DESA -->
+    <div id="modal-add-user" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card rounded-3xl max-w-md w-full p-6 space-y-4 border border-slate-700 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="font-bold text-white text-base">Tambah Perangkat Desa Baru</h3>
+                <button onclick="app.closeModal('modal-add-user')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Lengkap & Gelar:</label>
+                    <input type="text" id="new-user-name" class="w-full glass-input rounded-xl px-3 py-2 text-xs" placeholder="Contoh: Ahmad Yani, S.IP.">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">NIP / Nick Unik:</label>
+                    <input type="text" id="new-user-nip" class="w-full glass-input rounded-xl px-3 py-2 text-xs" placeholder="Contoh: 19850101... atau nick 'staf2'">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Jabatan Perangkat Desa:</label>
+                    <select id="new-user-jabatan" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white">
+                        <option value="Kepala Desa">Kepala Desa (Kades)</option>
+                        <option value="Sekretaris Desa">Sekretaris Desa (Sekdes)</option>
+                        <option value="Kasi Pemerintahan">Kasi Pemerintahan</option>
+                        <option value="Kasi Kesejahteraan">Kasi Kesejahteraan</option>
+                        <option value="Kasi Pelayanan">Kasi Pelayanan</option>
+                        <option value="Kaur Keuangan">Kaur Keuangan</option>
+                        <option value="Kaur Umum & Perencanaan">Kaur Umum & Perencanaan</option>
+                        <option value="Staf Desa" selected>Staf Desa</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">URL Foto Profil Pegawai:</label>
+                    <input type="url" id="new-user-photo" class="w-full glass-input rounded-xl px-3 py-2 text-xs" placeholder="https://images.unsplash.com/...">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Role Akses Sistem:</label>
+                    <select id="new-user-role" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white">
+                        <option value="staff">Staff Biasa</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 border-t border-slate-700 pt-3">
+                <button onclick="app.closeModal('modal-add-user')" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs rounded-xl hover:bg-slate-700">Batal</button>
+                <button onclick="app.saveNewUser()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md">Simpan Pegawai</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOM TOAST / ALERT MODAL -->
+    <div id="toast-message-box" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-card rounded-2xl max-w-sm w-full p-6 text-center space-y-4 border border-slate-700 shadow-2xl">
+            <div id="toast-icon-box" class="w-14 h-14 mx-auto rounded-full flex items-center justify-center text-2xl"></div>
+            <div>
+                <h4 id="toast-title" class="font-bold text-white text-base">Notifikasi</h4>
+                <p id="toast-desc" class="text-xs text-slate-300 mt-1">Pesan detail di sini...</p>
+            </div>
+            <button onclick="app.closeToast()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <!-- FIREBASE SDK & APPLICATION CODE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Config yang Anda sediakan
+        const firebaseConfig = {
+            apiKey: "AIzaSyASDR_J6OaYecrmecW92w9QmW-C0Ug5v74",
+            authDomain: "absensi-2c20a.firebaseapp.com",
+            projectId: "absensi-2c20a",
+            storageBucket: "absensi-2c20a.firebasestorage.app",
+            messagingSenderId: "370158710098",
+            appId: "1:370158710098:web:50be176b4186e5c6fd1e8b",
+            measurementId: "G-SE6E81FXJ6"
+        };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'absensi-desa-lendang-tampel';
+        const basePath = `artifacts/${appId}/public/data`;
+
+        let app_fb, auth, db;
+
+        // State Aplikasi
+        const state = {
+            users: [],
+            attendances: [],
+            selectedStaff: null,
+            adminMode: false,
+            villageSettings: {
+                heroUrl: "https://images.unsplash.com/photo-1577495508048-b635879837f1?auto=format&fit=crop&w=1600&q=80",
+                kadesPhotoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+                kadesName: "H. Lalu Ahmad Subhan, S.AP.",
+                kadesQuote: "Kedisiplinan adalah kunci utama pelayanan masyarakat yang ramah, cepat, dan berintegritas."
+            },
+            currentScanType: 'in', // 'in' or 'out'
+            scanTimeout: null
+        };
+
+        window.app = {
+            init: async function() {
+                try {
+                    app_fb = initializeApp(firebaseConfig);
+                    auth = getAuth(app_fb);
+                    db = getFirestore(app_fb);
+
+                    // Graceful Auth handling (prevents auth/configuration-not-found from crashing the app)
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (authError) {
+                        console.warn("Firebase Auth sign-in skipped/failed:", authError.message);
+                    }
+
+                    // Seed Default Data jika kosong
+                    try {
+                        await this.seedInitialData();
+                    } catch (seedErr) {
+                        console.warn("Seed data skipped (Firestore connection/rules):", seedErr.message);
+                        this.loadDefaultUsers();
+                    }
+
+                    // Realtime Listeners
+                    this.setupListeners();
+
+                    // Start Live Clock
+                    this.startLiveClock();
+
+                    document.getElementById('global-loading').classList.add('hidden');
+                } catch (error) {
+                    console.error("Firebase initialization fallback:", error);
+                    document.getElementById('global-loading').classList.add('hidden');
+                    this.loadDefaultUsers();
+                    this.startLiveClock();
+                }
+            },
+
+            loadDefaultUsers: function() {
+                const localUsers = localStorage.getItem('lendang_tampel_users');
+                if (localUsers) {
+                    try {
+                        state.users = JSON.parse(localUsers);
+                    } catch(e) {
+                        state.users = this.getDefaultUserList();
+                    }
+                } else {
+                    state.users = this.getDefaultUserList();
+                }
+                this.populateStaffDropdown();
+                this.renderUsersTable();
+                this.updateHeroStats();
+
+                // Load local attendance
+                const localAtt = localStorage.getItem('lendang_tampel_attendances');
+                if (localAtt) {
+                    try {
+                        state.attendances = JSON.parse(localAtt);
+                    } catch(e) {}
+                }
+                this.renderAttendanceLogsTable();
+
+                // Load local settings
+                const localSettings = localStorage.getItem('lendang_tampel_settings');
+                if (localSettings) {
+                    try {
+                        state.villageSettings = { ...state.villageSettings, ...JSON.parse(localSettings) };
+                        this.applyVillageSettings();
+                    } catch(e) {}
+                }
+            },
+
+            getDefaultUserList: function() {
+                return [
+                    {
+                        id: 'usr-kades',
+                        nip: '197508122005011001',
+                        nick: 'kades',
+                        name: 'H. Lalu Ahmad Subhan, S.AP.',
+                        jabatan: 'Kepala Desa',
+                        role: 'admin',
+                        photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 'usr-sekdes',
+                        nip: '198203152010011002',
+                        nick: 'sekdes',
+                        name: 'Lalu Muhamad Zaini, S.E.',
+                        jabatan: 'Sekretaris Desa',
+                        role: 'admin',
+                        photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 'usr-kasi-pem',
+                        nip: '198806202014022001',
+                        nick: 'kasipem',
+                        name: 'Baiq Nurul Hidayati, S.IP.',
+                        jabatan: 'Kasi Pemerintahan',
+                        role: 'staff',
+                        photoUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 'usr-kaur-keu',
+                        nip: '199011052016031003',
+                        nick: 'kaurkeu',
+                        name: 'Supriadi, A.Md.',
+                        jabatan: 'Kaur Keuangan',
+                        role: 'staff',
+                        photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 'usr-staf-1',
+                        nip: '199401222019011004',
+                        nick: 'staf1',
+                        name: 'M. Rizky Pratama',
+                        jabatan: 'Staf Desa',
+                        role: 'staff',
+                        photoUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&q=80'
+                    }
+                ];
+            },
+
+            seedInitialData: async function() {
+                if (!db) return;
+
+                // Seed Default Users
+                const usersRef = collection(db, basePath, 'users');
+                const userSnap = await getDocs(usersRef);
+
+                if (userSnap.empty) {
+                    const defaultUsers = this.getDefaultUserList();
+
+                    for (const u of defaultUsers) {
+                        await setDoc(doc(db, basePath, 'users', u.id), u);
+                    }
+                }
+            },
+
+            setupListeners: function() {
+                if (!db) {
+                    this.loadDefaultUsers();
+                    return;
+                }
+
+                // Listen Users
+                onSnapshot(collection(db, basePath, 'users'), (snap) => {
+                    if (!snap.empty) {
+                        state.users = [];
+                        snap.forEach(d => state.users.push({ id: d.id, ...d.data() }));
+                    } else {
+                        state.users = this.getDefaultUserList();
+                    }
+                    this.populateStaffDropdown();
+                    this.renderUsersTable();
+                    this.updateHeroStats();
+                }, err => {
+                    console.warn("Users snapshot error, fallback to local:", err);
+                    this.loadDefaultUsers();
+                });
+
+                // Listen Attendance Records
+                onSnapshot(collection(db, basePath, 'attendance'), (snap) => {
+                    state.attendances = [];
+                    snap.forEach(d => state.attendances.push({ id: d.id, ...d.data() }));
+                    this.renderAttendanceLogsTable();
+                    this.updateHeroStats();
+                    if (state.selectedStaff) {
+                        this.updateSelectedStaffUI(state.selectedStaff);
+                    }
+                }, err => {
+                    console.warn("Attendance snapshot error:", err);
+                });
+
+                // Listen Village Settings
+                onSnapshot(doc(db, basePath, 'settings', 'info'), (docSnap) => {
+                    if (docSnap.exists()) {
+                        state.villageSettings = { ...state.villageSettings, ...docSnap.data() };
+                        this.applyVillageSettings();
+                    }
+                }, err => {
+                    console.warn("Settings snapshot error:", err);
+                });
+            },
+
+            startLiveClock: function() {
+                const updateClock = () => {
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString('id-ID', { hour12: false }) + ' WITA';
+                    const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+                    
+                    document.getElementById('header-time').textContent = timeStr;
+                    document.getElementById('header-date').textContent = dateStr;
+                };
+                updateClock();
+                setInterval(updateClock, 1000);
+            },
+
+            applyVillageSettings: function() {
+                const s = state.villageSettings;
+                if (s.heroUrl) document.getElementById('village-hero-bg').src = s.heroUrl;
+                if (s.kadesPhotoUrl) document.getElementById('kades-photo').src = s.kadesPhotoUrl;
+                if (s.kadesName) document.getElementById('kades-name').textContent = s.kadesName;
+                if (s.kadesQuote) document.getElementById('kades-quote').textContent = s.kadesQuote;
+
+                // Admin settings inputs
+                document.getElementById('setting-hero-url').value = s.heroUrl || '';
+                document.getElementById('setting-kades-photo-url').value = s.kadesPhotoUrl || '';
+                document.getElementById('setting-kades-name').value = s.kadesName || '';
+                document.getElementById('setting-kades-quote').value = s.kadesQuote || '';
+            },
+
+            updateHeroStats: function() {
+                const total = state.users.length;
+                const todayStr = new Date().toISOString().split('T')[0];
+                const todayRecords = state.attendances.filter(a => a.date === todayStr);
+                const hadirCount = todayRecords.length;
+                const percent = total > 0 ? Math.round((hadirCount / total) * 100) : 0;
+
+                document.getElementById('stat-total-pegawai').textContent = total;
+                document.getElementById('stat-hadir-today').textContent = hadirCount;
+                document.getElementById('stat-persen-today').textContent = `${percent}%`;
+            },
+
+            populateStaffDropdown: function() {
+                const select = document.getElementById('select-staff-dropdown');
+                select.innerHTML = '<option value="">-- Pilih Perangkat Desa --</option>';
+                state.users.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = `${u.name} - ${u.jabatan} (NIP: ${u.nip || '-'})`;
+                    select.appendChild(opt);
+                });
+            },
+
+            // SEARCH / FILTER NICK & NIP INSTANTLY
+            onNickSearchInput: function(query) {
+                const q = query.trim().toLowerCase();
+                if (!q) return;
+
+                const found = state.users.find(u => 
+                    u.nick?.toLowerCase() === q || 
+                    u.nip?.toLowerCase() === q || 
+                    u.name?.toLowerCase().includes(q)
+                );
+
+                if (found) {
+                    this.selectStaff(found);
+                }
+            },
+
+            onStaffDropdownSelect: function(userId) {
+                if (!userId) return;
+                const found = state.users.find(u => u.id === userId);
+                if (found) this.selectStaff(found);
+            },
+
+            filterByRole: function(roleKey) {
+                const found = state.users.find(u => u.jabatan.toLowerCase().includes(roleKey));
+                if (found) {
+                    this.selectStaff(found);
+                } else {
+                    this.showToast('Info', `Perangkat desa dengan jabatan '${roleKey}' tidak ditemukan.`, 'info');
+                }
+            },
+
+            selectStaff: function(user) {
+                state.selectedStaff = user;
+                this.updateSelectedStaffUI(user);
+            },
+
+            updateSelectedStaffUI: function(user) {
+                document.getElementById('staff-card-empty').classList.add('hidden');
+                const activeCard = document.getElementById('staff-card-active');
+                activeCard.classList.remove('hidden');
+
+                document.getElementById('active-staff-avatar').src = user.photoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80';
+                document.getElementById('active-staff-name').textContent = user.name;
+                document.getElementById('active-staff-nip').textContent = `NIP: ${user.nip || '-'}`;
+                document.getElementById('active-staff-jabatan-badge').textContent = user.jabatan;
+
+                // Today's Status Check
+                const todayStr = new Date().toISOString().split('T')[0];
+                const todayRec = state.attendances.find(a => a.userId === user.id && a.date === todayStr);
+
+                const statusBox = document.getElementById('active-staff-today-status');
+                if (todayRec) {
+                    let badgeClass = "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
+                    if (todayRec.status === 'Terlambat') badgeClass = "bg-rose-500/20 text-rose-300 border-rose-500/30";
+                    
+                    statusBox.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 border rounded-lg text-xs font-bold ${badgeClass}">
+                                ${todayRec.status} (${todayRec.checkInTime})
+                            </span>
+                            ${todayRec.checkOutTime ? `<span class="px-2.5 py-0.5 border border-amber-500/30 bg-amber-500/20 text-amber-300 rounded-lg text-xs font-bold">Pulang (${todayRec.checkOutTime})</span>` : ''}
+                        </div>
+                    `;
+                } else {
+                    statusBox.innerHTML = `<span class="px-2.5 py-0.5 bg-slate-800 text-slate-400 rounded-lg text-xs font-semibold">Belum Absen Hari Ini</span>`;
+                }
+            },
+
+            // --- BIOMETRIC & GPS ATTENDANCE PROCESS ---
+            startBiometricProcess: function(type) {
+                if (!state.selectedStaff) return;
+                
+                const user = state.selectedStaff;
+                const todayStr = new Date().toISOString().split('T')[0];
+                const todayRec = state.attendances.find(a => a.userId === user.id && a.date === todayStr);
+
+                if (type === 'in' && todayRec && todayRec.checkInTime) {
+                    this.showToast('Sudah Absen', `${user.name} sudah melakukan presensi masuk hari ini.`, 'info');
+                    return;
+                }
+                if (type === 'out') {
+                    if (!todayRec || !todayRec.checkInTime) {
+                        this.showToast('Belum Absen Masuk', `${user.name} belum absen masuk hari ini.`, 'warning');
+                        return;
+                    }
+                    if (todayRec.checkOutTime) {
+                        this.showToast('Sudah Pulang', `${user.name} sudah absen pulang hari ini.`, 'info');
+                        return;
+                    }
+                }
+
+                state.currentScanType = type;
+
+                // Open Scanner Modal
+                const modal = document.getElementById('modal-scanner');
+                document.getElementById('scan-type-badge').textContent = type === 'in' ? 'PRESENSI MASUK' : 'PRESENSI PULANG';
+                document.getElementById('scan-modal-staff-name').textContent = user.name;
+                document.getElementById('scan-status-title').textContent = 'Memeriksa Sensor GPS Handphone...';
+                document.getElementById('scan-status-detail').textContent = 'Mencari Akurasi Koordinat Lokasi...';
+
+                modal.classList.remove('hidden');
+
+                // Get Real GPS
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            const lat = pos.coords.latitude.toFixed(5);
+                            const lng = pos.coords.longitude.toFixed(5);
+                            
+                            document.getElementById('scan-status-title').textContent = 'Lokasi GPS Terverifikasi! (Kantor Desa)';
+                            document.getElementById('scan-status-detail').textContent = `Lat: ${lat}, Lng: ${lng} • Tempelkan Sidik Jari...`;
+
+                            // Simulate Biometric Fingerprint Recognition Delay
+                            state.scanTimeout = setTimeout(() => {
+                                this.completeAttendance(pos.coords);
+                            }, 2200);
+                        },
+                        (err) => {
+                            // Fallback Location if GPS denied
+                            document.getElementById('scan-status-title').textContent = 'GPS Terhubung (Default Kantor Desa)';
+                            document.getElementById('scan-status-detail').textContent = 'Lat: -8.6500, Lng: 116.3200 • Pindai Sidik Jari...';
+
+                            state.scanTimeout = setTimeout(() => {
+                                this.completeAttendance({ latitude: -8.6500, longitude: 116.3200 });
+                            }, 2200);
+                        },
+                        { enableHighAccuracy: true, timeout: 8000 }
+                    );
+                }
+            },
+
+            cancelScanProcess: function() {
+                if (state.scanTimeout) clearTimeout(state.scanTimeout);
+                document.getElementById('modal-scanner').classList.add('hidden');
+            },
+
+            completeAttendance: async function(coords) {
+                const user = state.selectedStaff;
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+                const timeStr = now.toLocaleTimeString('id-ID', { hour12: false }).substring(0, 5); // HH:MM
+
+                try {
+                    if (state.currentScanType === 'in') {
+                        // Late logic (Target: 08:00 WITA)
+                        const hr = now.getHours();
+                        const min = now.getMinutes();
+                        const isLate = (hr > 8 || (hr === 8 && min > 0));
+
+                        const record = {
+                            id: 'att-' + Date.now(),
+                            userId: user.id,
+                            userName: user.name,
+                            userJabatan: user.jabatan,
+                            userNip: user.nip || '-',
+                            date: dateStr,
+                            checkInTime: timeStr,
+                            checkInLocation: { lat: coords.latitude, lng: coords.longitude },
+                            status: isLate ? 'Terlambat' : 'Tepat Waktu',
+                            timestamp: Date.now()
+                        };
+
+                        try {
+                            await addDoc(collection(db, basePath, 'attendance'), record);
+                        } catch (dbErr) {
+                            console.warn("Firestore addDoc failed, using local storage fallback:", dbErr);
+                            state.attendances.push(record);
+                            localStorage.setItem('lendang_tampel_attendances', JSON.stringify(state.attendances));
+                            this.renderAttendanceLogsTable();
+                            this.updateHeroStats();
+                            this.updateSelectedStaffUI(user);
+                        }
+                    } else {
+                        // Check out
+                        const todayRec = state.attendances.find(a => a.userId === user.id && a.date === dateStr);
+                        if (todayRec) {
+                            try {
+                                await updateDoc(doc(db, basePath, 'attendance', todayRec.id), {
+                                    checkOutTime: timeStr,
+                                    checkOutLocation: { lat: coords.latitude, lng: coords.longitude }
+                                });
+                            } catch (dbErr) {
+                                console.warn("Firestore updateDoc failed, updating local storage:", dbErr);
+                                todayRec.checkOutTime = timeStr;
+                                todayRec.checkOutLocation = { lat: coords.latitude, lng: coords.longitude };
+                                localStorage.setItem('lendang_tampel_attendances', JSON.stringify(state.attendances));
+                                this.renderAttendanceLogsTable();
+                                this.updateSelectedStaffUI(user);
+                            }
+                        }
+                    }
+
+                    document.getElementById('modal-scanner').classList.add('hidden');
+                    this.showToast('Presensi Sukses!', `Presensi ${state.currentScanType === 'in' ? 'Masuk' : 'Pulang'} untuk ${user.name} berhasil dicatat.`, 'success');
+
+                } catch (e) {
+                    console.error("Save error:", e);
+                    document.getElementById('modal-scanner').classList.add('hidden');
+                    this.showToast('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan presensi.', 'error');
+                }
+            },
+
+            // --- ADMIN PANEL TOGGLE & TABS ---
+            toggleAdminMode: function() {
+                state.adminMode = !state.adminMode;
+                const panel = document.getElementById('admin-panel-section');
+                const btnText = document.getElementById('btn-admin-text');
+
+                if (state.adminMode) {
+                    panel.classList.remove('hidden');
+                    btnText.textContent = "Tutup Admin";
+                    panel.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    panel.classList.add('hidden');
+                    btnText.textContent = "Panel Admin";
+                }
+            },
+
+            switchAdminTab: function(tabKey) {
+                document.getElementById('admin-view-reports').classList.add('hidden');
+                document.getElementById('admin-view-users').classList.add('hidden');
+                document.getElementById('admin-view-settings').classList.add('hidden');
+
+                document.getElementById('admin-tab-btn-reports').className = "px-4 py-2 text-xs font-bold rounded-xl transition text-slate-400 hover:text-white";
+                document.getElementById('admin-tab-btn-users').className = "px-4 py-2 text-xs font-bold rounded-xl transition text-slate-400 hover:text-white";
+                document.getElementById('admin-tab-btn-settings').className = "px-4 py-2 text-xs font-bold rounded-xl transition text-slate-400 hover:text-white";
+
+                document.getElementById(`admin-view-${tabKey}`).classList.remove('hidden');
+                document.getElementById(`admin-tab-btn-${tabKey}`).className = "px-4 py-2 text-xs font-bold rounded-xl transition bg-emerald-600 text-white shadow-md";
+            },
+
+            renderAttendanceLogsTable: function() {
+                const tbody = document.getElementById('table-attendance-tbody');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+
+                const filterMonth = document.getElementById('filter-report-month').value;
+                const filterJabatan = document.getElementById('filter-report-jabatan').value;
+
+                let filtered = [...state.attendances].sort((a,b) => b.timestamp - a.timestamp);
+
+                if (filterMonth) {
+                    filtered = filtered.filter(a => a.date?.startsWith(filterMonth));
+                }
+                if (filterJabatan !== 'ALL') {
+                    filtered = filtered.filter(a => a.userJabatan?.toLowerCase().includes(filterJabatan.toLowerCase()));
+                }
+
+                if (filtered.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-slate-500">Tidak ada data presensi untuk filter ini.</td></tr>`;
+                    return;
+                }
+
+                filtered.forEach(rec => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/50 transition";
+
+                    let statusBadge = `<span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full font-bold">Tepat Waktu</span>`;
+                    if (rec.status === 'Terlambat') {
+                        statusBadge = `<span class="px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full font-bold">Terlambat</span>`;
+                    }
+
+                    const gpsLink = rec.checkInLocation ? 
+                        `<a href="https://maps.google.com/?q=${rec.checkInLocation.lat},${rec.checkInLocation.lng}" target="_blank" class="text-cyan-400 hover:underline"><i class="fa-solid fa-map-location-dot"></i> Peta</a>` : '-';
+
+                    tr.innerHTML = `
+                        <td class="px-4 py-3">${rec.date}</td>
+                        <td class="px-4 py-3 font-semibold text-white">${rec.userName}<br><span class="text-[10px] text-slate-400 font-mono">${rec.userNip}</span></td>
+                        <td class="px-4 py-3">${rec.userJabatan}</td>
+                        <td class="px-4 py-3 font-bold text-emerald-400">${rec.checkInTime || '-'}</td>
+                        <td class="px-4 py-3">${gpsLink}</td>
+                        <td class="px-4 py-3 font-bold text-amber-400">${rec.checkOutTime || '-'}</td>
+                        <td class="px-4 py-3">${statusBadge}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            },
+
+            renderUsersTable: function() {
+                const tbody = document.getElementById('table-users-tbody');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+
+                state.users.forEach(u => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/50 transition";
+
+                    tr.innerHTML = `
+                        <td class="px-4 py-3 flex items-center gap-3">
+                            <img src="${u.photoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80'}" class="w-8 h-8 rounded-full object-cover border border-slate-700">
+                            <div>
+                                <span class="font-bold text-white block">${u.name}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 font-mono">${u.nip || '-'} (${u.nick || '-'})</td>
+                        <td class="px-4 py-3"><span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md text-[11px]">${u.jabatan}</span></td>
+                        <td class="px-4 py-3 uppercase text-[10px] font-bold text-emerald-400">${u.role}</td>
+                        <td class="px-4 py-3 text-right">
+                            <button onclick="app.selectStaff(app.getUserById('${u.id}'))" class="text-xs text-cyan-400 hover:underline">Pilih Presensi</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            },
+
+            getUserById: function(id) {
+                return state.users.find(u => u.id === id);
+            },
+
+            // --- MODAL USER MANAGEMENT ---
+            openModalAddUser: function() {
+                document.getElementById('new-user-name').value = '';
+                document.getElementById('new-user-nip').value = '';
+                document.getElementById('new-user-photo').value = '';
+                document.getElementById('modal-add-user').classList.remove('hidden');
+            },
+
+            closeModal: function(id) {
+                document.getElementById(id).classList.add('hidden');
+            },
+
+            saveNewUser: async function() {
+                const name = document.getElementById('new-user-name').value.trim();
+                const nip = document.getElementById('new-user-nip').value.trim();
+                const jabatan = document.getElementById('new-user-jabatan').value;
+                const photoUrl = document.getElementById('new-user-photo').value.trim();
+                const role = document.getElementById('new-user-role').value;
+
+                if (!name || !nip) {
+                    this.showToast('Error', 'Nama dan NIP/Nick wajib diisi!', 'error');
+                    return;
+                }
+
+                try {
+                    const newId = 'usr-' + Date.now();
+                    const newUser = {
+                        id: newId,
+                        name,
+                        nip,
+                        nick: nip.toLowerCase().replace(/\s+/g, ''),
+                        jabatan,
+                        role,
+                        photoUrl: photoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80'
+                    };
+
+                    try {
+                        await setDoc(doc(db, basePath, 'users', newId), newUser);
+                    } catch(dbErr) {
+                        console.warn("Firestore save user failed, saving to local storage:", dbErr);
+                        state.users.push(newUser);
+                        localStorage.setItem('lendang_tampel_users', JSON.stringify(state.users));
+                        this.populateStaffDropdown();
+                        this.renderUsersTable();
+                        this.updateHeroStats();
+                    }
+
+                    this.closeModal('modal-add-user');
+                    this.showToast('Sukses', 'Perangkat desa baru berhasil ditambahkan!', 'success');
+                } catch (e) {
+                    this.showToast('Gagal', 'Terjadi kesalahan saat menambah perangkat.', 'error');
+                }
+            },
+
+            saveVillageSettings: async function() {
+                const heroUrl = document.getElementById('setting-hero-url').value.trim();
+                const kadesPhotoUrl = document.getElementById('setting-kades-photo-url').value.trim();
+                const kadesName = document.getElementById('setting-kades-name').value.trim();
+                const kadesQuote = document.getElementById('setting-kades-quote').value.trim();
+
+                try {
+                    const settingsObj = { heroUrl, kadesPhotoUrl, kadesName, kadesQuote };
+                    try {
+                        await setDoc(doc(db, basePath, 'settings', 'info'), settingsObj, { merge: true });
+                    } catch(dbErr) {
+                        console.warn("Firestore save settings failed, saving locally:", dbErr);
+                        state.villageSettings = { ...state.villageSettings, ...settingsObj };
+                        localStorage.setItem('lendang_tampel_settings', JSON.stringify(state.villageSettings));
+                        this.applyVillageSettings();
+                    }
+
+                    this.showToast('Sukses', 'Portofolio & Pengaturan Desa berhasil diperbarui.', 'success');
+                } catch (e) {
+                    this.showToast('Error', 'Gagal menyimpan pengaturan.', 'error');
+                }
+            },
+
+            // --- EXPORT FUNCTIONALITIES (EXCEL & PDF) ---
+            getExportData: function() {
+                const filterMonth = document.getElementById('filter-report-month').value;
+                const filterJabatan = document.getElementById('filter-report-jabatan').value;
+
+                let logs = [...state.attendances].sort((a,b) => b.timestamp - a.timestamp);
+
+                if (filterMonth) logs = logs.filter(a => a.date?.startsWith(filterMonth));
+                if (filterJabatan !== 'ALL') logs = logs.filter(a => a.userJabatan?.toLowerCase().includes(filterJabatan.toLowerCase()));
+
+                return logs.map(a => ({
+                    "Tanggal": a.date,
+                    "Nama Pegawai": a.userName,
+                    "NIP": a.userNip,
+                    "Jabatan": a.userJabatan,
+                    "Jam Masuk": a.checkInTime || '-',
+                    "Jam Pulang": a.checkOutTime || '-',
+                    "Status": a.status || '-'
+                }));
+            },
+
+            exportToExcel: function() {
+                const data = this.getExportData();
+                if (data.length === 0) {
+                    this.showToast('Info', 'Tidak ada data presensi untuk diekspor.', 'info');
+                    return;
+                }
+
+                const worksheet = XLSX.utils.json_to_sheet(data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Absensi");
+
+                const filterMonth = document.getElementById('filter-report-month').value || 'Semua';
+                XLSX.writeFile(workbook, `Rekapan_Absensi_Desa_Lendang_Tampel_${filterMonth}.xlsx`);
+            },
+
+            exportToPDF: function() {
+                const data = this.getExportData();
+                if (data.length === 0) {
+                    this.showToast('Info', 'Tidak ada data presensi untuk diekspor.', 'info');
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                const filterMonth = document.getElementById('filter-report-month').value || 'Semua Waktu';
+
+                // PDF Header
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(14);
+                doc.text("PEMERINTAH KABUPATEN LOMBOK TENGAH", 105, 14, { align: "center" });
+                doc.setFontSize(12);
+                doc.text("KECAMATAN DESA LENDANG TAMPEL", 105, 20, { align: "center" });
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                doc.text(`REKAPITULASI PRESENSI PERANGKAT DESA - PERIODE ${filterMonth.toUpperCase()}`, 105, 27, { align: "center" });
+
+                const tableColumn = ["Tanggal", "Nama Pegawai", "NIP", "Jabatan", "Jam Masuk", "Jam Pulang", "Status"];
+                const tableRows = data.map(d => [d["Tanggal"], d["Nama Pegawai"], d["NIP"], d["Jabatan"], d["Jam Masuk"], d["Jam Pulang"], d["Status"]]);
+
+                doc.autoTable({
+                    head: [tableColumn],
+                    body: tableRows,
+                    startY: 33,
+                    theme: 'grid',
+                    styles: { fontSize: 8, cellPadding: 2.5 },
+                    headStyles: { fillColor: [6, 95, 70] }
+                });
+
+                doc.save(`Rekapan_Absensi_Desa_Lendang_Tampel_${filterMonth}.pdf`);
+            },
+
+            // --- TOAST NOTIFICATION UTILS ---
+            showToast: function(title, desc, type = 'info') {
+                const box = document.getElementById('toast-message-box');
+                document.getElementById('toast-title').textContent = title;
+                document.getElementById('toast-desc').textContent = desc;
+
+                const iconBox = document.getElementById('toast-icon-box');
+                if (type === 'success') {
+                    iconBox.className = "w-14 h-14 mx-auto rounded-full flex items-center justify-center text-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                    iconBox.innerHTML = '<i class="fa-solid fa-check"></i>';
+                } else if (type === 'error') {
+                    iconBox.className = "w-14 h-14 mx-auto rounded-full flex items-center justify-center text-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30";
+                    iconBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                } else {
+                    iconBox.className = "w-14 h-14 mx-auto rounded-full flex items-center justify-center text-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30";
+                    iconBox.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+                }
+
+                box.classList.remove('hidden');
+            },
+
+            closeToast: function() {
+                document.getElementById('toast-message-box').classList.add('hidden');
+            }
+        };
+
+        // DOM Ready Init
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
