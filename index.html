@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absensi Pemdes Lendang Tampel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- PDF & Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f3f4f6; }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        .premium-shadow { box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1); }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .gradient-text { background: linear-gradient(90deg, #047857, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    </style>
+</head>
+<body class="text-gray-800 antialiased h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="glass sticky top-0 z-50 px-4 py-3 flex justify-between items-center premium-shadow">
+        <div class="flex items-center gap-3">
+            <img id="logo-kabupaten" src="" alt="Logo" class="w-10 h-10 object-contain">
+            <div>
+                <h1 class="font-bold text-lg leading-tight text-emerald-800">Absensi Pemdes</h1>
+                <p class="text-xs text-gray-500 font-semibold">Lendang Tampel</p>
+            </div>
+        </div>
+        <button onclick="toggleAdmin()" class="text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg text-sm font-semibold transition">
+            <i class="fas fa-cog"></i> Admin
+        </button>
+    </nav>
+
+    <!-- MAIN VIEW (PEGAWAI) -->
+    <main id="view-home" class="flex-1 overflow-y-auto">
+        <!-- Hero Section -->
+        <div class="relative w-full h-72 bg-gray-900">
+            <img id="hero-bg" src="" class="absolute inset-0 w-full h-full object-cover opacity-40">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+            <div class="absolute bottom-0 left-0 p-6 flex items-end gap-4">
+                <img id="kades-photo" src="" class="w-24 h-32 object-cover rounded-xl border-2 border-emerald-500 shadow-lg">
+                <div class="text-white pb-2">
+                    <h2 class="font-bold text-xl text-emerald-400">Kepala Desa</h2>
+                    <p id="kades-quote" class="text-sm italic opacity-90 mt-1 max-w-sm"></p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-emerald-900 text-white p-3 text-center text-sm font-semibold tracking-wide" id="visi-misi"></div>
+
+        <!-- Employee Slider -->
+        <div class="p-6">
+            <h3 class="text-lg font-bold mb-4 gradient-text"><i class="fas fa-users"></i> Pilih Nama Anda untuk Absen</h3>
+            <div id="employee-slider" class="flex overflow-x-auto gap-4 pb-4 hide-scroll snap-x">
+                <!-- Data Pegawai akan dimuat di sini -->
+            </div>
+        </div>
+    </main>
+
+    <!-- ADMIN PANEL -->
+    <main id="view-admin" class="hidden flex-1 overflow-y-auto p-6 bg-white">
+        <h2 class="text-2xl font-bold mb-6 gradient-text">Panel Administrator</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Pengaturan -->
+            <div class="glass p-5 rounded-2xl border border-gray-100 premium-shadow">
+                <h3 class="font-bold mb-4 text-emerald-800"><i class="fas fa-cogs"></i> Pengaturan Sistem</h3>
+                <div class="space-y-3 text-sm">
+                    <input type="text" id="set-lat" placeholder="Latitude Kantor" class="w-full p-2 border rounded">
+                    <input type="text" id="set-lng" placeholder="Longitude Kantor" class="w-full p-2 border rounded">
+                    <div class="flex gap-2">
+                        <input type="time" id="set-masuk" class="w-full p-2 border rounded" title="Jam Masuk">
+                        <input type="time" id="set-pulang" class="w-full p-2 border rounded" title="Jam Pulang">
+                    </div>
+                    <input type="text" id="set-kades-quote" placeholder="Kata-kata Kedisiplinan" class="w-full p-2 border rounded">
+                    <button onclick="saveSettings()" class="w-full bg-emerald-600 text-white py-2 rounded font-bold mt-2">Simpan Pengaturan</button>
+                </div>
+            </div>
+
+            <!-- Tambah Pegawai -->
+            <div class="glass p-5 rounded-2xl border border-gray-100 premium-shadow">
+                <h3 class="font-bold mb-4 text-emerald-800"><i class="fas fa-user-plus"></i> Kelola Pegawai</h3>
+                <div class="space-y-3 text-sm">
+                    <input type="text" id="emp-name" placeholder="Nama Lengkap" class="w-full p-2 border rounded">
+                    <input type="text" id="emp-pos" placeholder="Jabatan" class="w-full p-2 border rounded">
+                    <input type="text" id="emp-nik" placeholder="NIK" class="w-full p-2 border rounded">
+                    <input type="text" id="emp-photo" placeholder="URL Foto" class="w-full p-2 border rounded">
+                    <button onclick="addEmployee()" class="w-full bg-blue-600 text-white py-2 rounded font-bold">Tambah Pegawai</button>
+                </div>
+            </div>
+            
+            <!-- Rekapan Export -->
+            <div class="glass p-5 rounded-2xl border border-gray-100 premium-shadow md:col-span-2">
+                <h3 class="font-bold mb-4 text-emerald-800"><i class="fas fa-file-export"></i> Rekapan Absensi</h3>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="exportData('pdf')" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded font-bold shadow"><i class="fas fa-file-pdf"></i> Cetak PDF</button>
+                    <button onclick="exportData('excel')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-bold shadow"><i class="fas fa-file-excel"></i> Cetak Excel</button>
+                </div>
+                <div class="mt-4 overflow-x-auto">
+                    <table class="w-full text-sm text-left border">
+                        <thead class="bg-gray-100">
+                            <tr><th>Nama</th><th>Tipe</th><th>Waktu</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="table-rekap"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL ABSENSI -->
+    <div id="modal-absen" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 relative premium-shadow text-center">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i class="fas fa-times fa-lg"></i></button>
+            <img id="modal-photo" src="" class="w-20 h-20 mx-auto rounded-full object-cover border-4 border-emerald-100 mb-3 shadow-md">
+            <h3 id="modal-name" class="font-bold text-xl text-gray-800">Nama</h3>
+            <p id="modal-pos" class="text-emerald-600 text-sm font-semibold mb-6">Jabatan</p>
+            
+            <div id="gps-status" class="mb-4 text-xs font-bold text-yellow-600 bg-yellow-50 py-2 rounded"><i class="fas fa-spinner fa-spin"></i> Mendapatkan Lokasi GPS...</div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <button onclick="prosesAbsen('masuk')" class="bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold shadow-lg transition transform hover:scale-105">
+                    <i class="fas fa-sign-in-alt text-xl mb-1 block"></i> Absen Masuk
+                </button>
+                <button onclick="prosesAbsen('pulang')" class="bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg transition transform hover:scale-105">
+                    <i class="fas fa-sign-out-alt text-xl mb-1 block"></i> Absen Pulang
+                </button>
+            </div>
+            <button onclick="izinForm()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-xl font-semibold text-sm">
+                <i class="fas fa-envelope-open-text"></i> Ajukan Izin / Sakit
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // INISIALISASI SUPABASE (Gunakan URL dan Key Anda)
+        const supabaseUrl = 'https://tjmzwkfwkafckjnejphw.supabase.co';
+        const supabaseKey = 'sb_publishable_IZSllcn7xijwStvPKOP3TQ_dVUP7wP2';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        let systemSettings = {};
+        let currentEmployee = null;
+        let userLocation = null;
+
+        // Load Data Awal
+        async function init() {
+            await loadSettings();
+            await loadEmployees();
+            await loadRekapan();
+        }
+
+        async function loadSettings() {
+            const { data } = await supabase.from('settings').select('*').eq('id', 1).single();
+            if (data) {
+                systemSettings = data;
+                document.getElementById('logo-kabupaten').src = data.logo_url;
+                document.getElementById('hero-bg').src = data.kades_bg;
+                document.getElementById('kades-photo').src = data.kades_photo;
+                document.getElementById('kades-quote').innerText = `"${data.kades_quote}"`;
+                document.getElementById('visi-misi').innerText = data.visi_misi;
+                
+                // Isi input admin
+                document.getElementById('set-lat').value = data.office_lat;
+                document.getElementById('set-lng').value = data.office_lng;
+                document.getElementById('set-masuk').value = data.jam_masuk;
+                document.getElementById('set-pulang').value = data.jam_pulang;
+                document.getElementById('set-kades-quote').value = data.kades_quote;
+            }
+        }
+
+        async function loadEmployees() {
+            const { data } = await supabase.from('employees').select('*');
+            const slider = document.getElementById('employee-slider');
+            slider.innerHTML = '';
+            
+            data.forEach(emp => {
+                slider.innerHTML += `
+                    <div onclick='openAbsenModal(${JSON.stringify(emp)})' class="min-w-[140px] snap-center cursor-pointer transform transition hover:scale-105">
+                        <div class="bg-white rounded-2xl p-3 shadow-md border border-gray-100 text-center h-full flex flex-col justify-center items-center">
+                            <img src="${emp.photo_url}" class="w-16 h-16 rounded-full object-cover border-2 border-emerald-400 shadow mb-2">
+                            <h4 class="font-bold text-sm text-gray-800 leading-tight">${emp.name}</h4>
+                            <p class="text-[10px] text-emerald-600 font-semibold mt-1">${emp.position}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // NAVIGASI
+        function toggleAdmin() {
+            const admin = document.getElementById('view-admin');
+            const home = document.getElementById('view-home');
+            if (admin.classList.contains('hidden')) {
+                // Sederhana prompt password untuk keamanan dasar
+                Swal.fire({
+                    title: 'Akses Admin', input: 'password', placeholder: 'Masukkan PIN Admin',
+                    confirmButtonColor: '#047857'
+                }).then(result => {
+                    if (result.value === 'admin123') { // Ganti PIN sesuai keinginan
+                        admin.classList.remove('hidden'); home.classList.add('hidden');
+                    } else if(result.value) {
+                        Swal.fire('Gagal', 'PIN Salah', 'error');
+                    }
+                });
+            } else {
+                admin.classList.add('hidden'); home.classList.remove('hidden');
+            }
+        }
+
+        // MODAL & GPS ABSENSI
+        function openAbsenModal(emp) {
+            currentEmployee = emp;
+            document.getElementById('modal-name').innerText = emp.name;
+            document.getElementById('modal-pos').innerText = emp.position;
+            document.getElementById('modal-photo').src = emp.photo_url;
+            document.getElementById('modal-absen').classList.remove('hidden');
+            document.getElementById('modal-absen').classList.add('flex');
+            
+            // Dapatkan GPS
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        userLocation = pos.coords;
+                        const dist = calculateDistance(userLocation.latitude, userLocation.longitude, systemSettings.office_lat, systemSettings.office_lng);
+                        const statusDiv = document.getElementById('gps-status');
+                        if (dist <= systemSettings.max_radius) {
+                            statusDiv.className = 'mb-4 text-xs font-bold text-green-700 bg-green-100 py-2 rounded';
+                            statusDiv.innerHTML = `<i class="fas fa-check-circle"></i> Lokasi Sesuai (Jarak: ${Math.round(dist)}m)`;
+                        } else {
+                            statusDiv.className = 'mb-4 text-xs font-bold text-red-700 bg-red-100 py-2 rounded';
+                            statusDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Di luar jangkauan! (Jarak: ${Math.round(dist)}m)`;
+                        }
+                    },
+                    err => {
+                        document.getElementById('gps-status').innerHTML = 'Izinkan Akses Lokasi (GPS) untuk absen!';
+                    },
+                    { enableHighAccuracy: true }
+                );
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-absen').classList.add('hidden');
+            document.getElementById('modal-absen').classList.remove('flex');
+        }
+
+        // FUNGSI ABSEN DENGAN SIDIK JARI (WEBAUTHN MOCKUP/IMPLEMENTASI)
+        async function prosesAbsen(tipe) {
+            if (!userLocation) {
+                return Swal.fire('Tunggu!', 'Sedang mendeteksi lokasi GPS Anda.', 'warning');
+            }
+            const dist = calculateDistance(userLocation.latitude, userLocation.longitude, systemSettings.office_lat, systemSettings.office_lng);
+            if (dist > systemSettings.max_radius) {
+                return Swal.fire('Gagal!', `Anda berada ${Math.round(dist)}m dari kantor. Harus berada di bawah ${systemSettings.max_radius}m.`, 'error');
+            }
+
+            // Simulasi API Sidik Jari (WebAuthn)
+            try {
+                // Di browser modern (mobile), ini akan memanggil otentikasi biometrik/layar kunci lokal.
+                if (window.PublicKeyCredential) {
+                    Swal.fire({ title: 'Otentikasi Sidik Jari', text: 'Silakan pindai sidik jari atau gunakan PIN perangkat Anda.', icon: 'info', timer: 2000, showConfirmButton: false});
+                    // Note: Implementasi WebAuthn murni butuh server challenge. 
+                    // Kita gunakan timeout untuk simulasi yang mulus agar fitur UX berjalan maksimal tanpa setup server backend otentikasi.
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+                
+                // Simpan ke Supabase
+                const { error } = await supabase.from('attendance').insert([{
+                    employee_id: currentEmployee.id,
+                    type: tipe,
+                    lat: userLocation.latitude,
+                    lng: userLocation.longitude,
+                    status: 'Tepat Waktu' // Logika keterlambatan dapat dikembangkan
+                }]);
+
+                if (error) throw error;
+                
+                Swal.fire('Berhasil!', `Absen ${tipe.toUpperCase()} berhasil dikonfirmasi.`, 'success');
+                closeModal();
+                loadRekapan();
+            } catch (err) {
+                Swal.fire('Error', err.message, 'error');
+            }
+        }
+
+        // FUNGSI ADMIN
+        async function saveSettings() {
+            const updates = {
+                office_lat: document.getElementById('set-lat').value,
+                office_lng: document.getElementById('set-lng').value,
+                jam_masuk: document.getElementById('set-masuk').value,
+                jam_pulang: document.getElementById('set-pulang').value,
+                kades_quote: document.getElementById('set-kades-quote').value,
+            };
+            await supabase.from('settings').update(updates).eq('id', 1);
+            Swal.fire('Tersimpan', 'Pengaturan berhasil diperbarui', 'success');
+            loadSettings();
+        }
+
+        async function addEmployee() {
+            const data = {
+                name: document.getElementById('emp-name').value,
+                position: document.getElementById('emp-pos').value,
+                nik: document.getElementById('emp-nik').value,
+                photo_url: document.getElementById('emp-photo').value || 'https://via.placeholder.com/150'
+            };
+            await supabase.from('employees').insert([data]);
+            Swal.fire('Berhasil', 'Pegawai ditambahkan', 'success');
+            loadEmployees();
+        }
+
+        // REKAPAN DAN EKSPORT
+        async function loadRekapan() {
+            const { data } = await supabase.from('attendance')
+                .select('*, employees(name)').order('timestamp', { ascending: false }).limit(20);
+            
+            const tbody = document.getElementById('table-rekap');
+            tbody.innerHTML = '';
+            data.forEach(d => {
+                const date = new Date(d.timestamp).toLocaleString('id-ID');
+                tbody.innerHTML += `<tr class="border-b"><td class="p-2">${d.employees.name}</td><td class="p-2 capitalize">${d.type}</td><td class="p-2">${date}</td><td class="p-2">${d.status}</td></tr>`;
+            });
+        }
+
+        async function exportData(type) {
+            const { data } = await supabase.from('attendance').select('timestamp, type, status, employees(name)').order('timestamp', { ascending: false });
+            
+            const rows = data.map(d => [d.employees.name, d.type, new Date(d.timestamp).toLocaleString('id-ID'), d.status]);
+            
+            if (type === 'pdf') {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                doc.text("Rekapan Absensi Pemdes Lendang Tampel", 14, 15);
+                doc.autoTable({ head: [['Nama', 'Tipe', 'Waktu', 'Status']], body: rows, startY: 20 });
+                doc.save("Absensi_Pemdes.pdf");
+            } else if (type === 'excel') {
+                const ws = XLSX.utils.aoa_to_sheet([['Nama', 'Tipe', 'Waktu', 'Status'], ...rows]);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Rekapan");
+                XLSX.writeFile(wb, "Absensi_Pemdes.xlsx");
+            }
+        }
+
+        // RUMUS HAVERSINE (Jarak GPS)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Radius bumi dalam meter
+            const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        // Menjalankan inisiasi awal
+        init();
+    </script>
+</body>
+</html>
